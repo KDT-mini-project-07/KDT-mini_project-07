@@ -159,3 +159,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 .vscode/
+
+DATA/sample_submission_V2.csv
+DATA/test_V2.csv
+DATA/train_V2.csv
