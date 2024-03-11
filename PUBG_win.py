@@ -80,33 +80,31 @@ def continueCheck():
     pass
 
 
+def importScaler(scaler_name):
+    scaler_dir = "./DATA/scaler/"
+    scaler_filename = scaler_dir + scaler_name
+    try:
+        scaler = joblib.load(scaler_filename)
+    except:
+        scaler = None
+    return scaler
+
+
 def importModel(model_name):
-    model_dir = "../DATA/"
+    model_dir = "./DATA/model/"
     model_filename = model_dir + model_name
     model = joblib.load(model_filename)
     return model
 
 
-def importTestData(num: int = 10):
-    pubg_testDF_ori: pd.DataFrame = pd.read_pickle("../DATA/pubg_testDF_ori.pkl")
-    drop_features_replace = ["rankPoints", "winPoints"]
-    winRankPoints = (
-        pubg_testDF_ori["rankPoints"].replace(-1, 0) + pubg_testDF_ori["winPoints"]
-    )
-    pubg_testDF = pd.concat(
-        [
-            pubg_testDF_ori.drop(drop_features_replace, axis=1),
-            winRankPoints.rename("winRankPoints"),
-        ],
-        axis=1,
-    )
-    return pubg_testDF
+def importData(data_name: str, start: int = 0, end: int = 5):
+    data_dir = "./DATA/DataFrame/"
+    data_filename = data_dir + data_name
+    df = pd.read_pickle(data_filename)
+    return df.iloc[start:end]
 
 
-def selectTarget(df: pd.DataFrame, matchType: str):
-    df = df[df.columns["matchType"] == matchType]
-    num = df.shape[1] + 1
-    drop_features_object = ["Id", "groupId", "matchId"]
+def predictScore(scaler, model, df: pd.DataFrame, matchType: int, competitiveFlag: int):
     drop_features_low_connection = [
         "killPoints",
         "kills",
@@ -116,52 +114,96 @@ def selectTarget(df: pd.DataFrame, matchType: str):
         "swimDistance",
         "vehicleDestroys",
     ]
-    while True:
-        print(" 승률 예측 플레이어 선택")
-        print(f" 데이터가 준비된 플레이어의 수 : {num}")
-        targetNum = input(f"승률을 예측할 플레이어를 선택하세요 : ")
-        if targetNum.isdecimal() and (0 <= int(targetNum) < num):
-            targetNum = int(targetNum)
-            selectDF = df.iloc[[targetNum]]
-            playerID = selectDF["id"][0]
-            selectDF = selectDF.drop(drop_features_object, axis=1)
-            break
-        else:
-            print(f"0~{num-1} 사이의 정수를 입력하세요.")
-    pass
+    drop_features_low_connection_solo = [
+        "DBNOs",
+        "killPoints",
+        "kills",
+        "maxPlace",
+        "numGroups",
+        "revives",
+        "rideDistance",
+        "roadKills",
+        "swimDistance",
+        "vehicleDestroys",
+    ]
+
+    if matchType in [1, 2] and competitiveFlag == 1:
+        selectDF = df.drop(drop_features_low_connection_solo, axis=1)
+    else:
+        selectDF = df.drop(drop_features_low_connection, axis=1)
+    if scaler != None:
+        selectDF = scaler.transform(selectDF)
+    os.system("cls")
+    print("==========================================")
+    print("  PUBG: BATTLEGROUNDS 승률 예측 프로그램")
+    print("==========================================")
+    print("  플레이어의 승률을 예측합니다")
+    print("------------------------------------------")
+
+    for i in range(5):
+        print(
+            f"{i:3}번 플레이어의 승률 : {round(model.predict(selectDF.iloc[i])*100, 2):.2f}"
+        )
 
 
 def main():
+    os.system("cls")
+
     while True:
+        scaler_name = "pubg_scaler_"
         model_name = "pubg_"
+        data_name = "pubg_test_"
         matchType = selectMatchType()
         if matchType == 1:
+            scaler_name += "solo"
             model_name += "solo"
+            data_name += "solo"
         elif matchType == 2:
+            scaler_name += "solo_fpp"
             model_name += "solo_fpp"
+            data_name += "solo_fpp"
         elif matchType == 3:
+            scaler_name += "duo"
             model_name += "duo"
+            data_name += "duo"
         elif matchType == 4:
+            scaler_name += "duo_fpp"
             model_name += "duo_fpp"
+            data_name += "duo_fpp"
         elif matchType == 5:
+            scaler_name += "squad"
             model_name += "squad"
+            data_name += "squad"
         elif matchType == 6:
+            scaler_name += "squad_fpp"
             model_name += "squad_fpp"
+            data_name += "squad_fpp"
         else:
             print("프로그램을 종료합니다.")
             break
 
         competitiveFlag = selectCompetitiveFlag()
         if competitiveFlag == 1:
+            scaler_name += ".pkl"
             model_name += ".pkl"
+            data_name += "DF.pkl"
         elif competitiveFlag == 2:
+            scaler_name += "_normal.pkl"
             model_name += "_normal.pkl"
+            data_name += "_normalDF.pkl"
         else:
             continue
 
         model = importModel(model_name)
-        model.predict()
-        print(model)
+        data = importData(data_name)
+        scaler = importScaler(scaler_name)
+        # model.predict()
+        # print(model)
+        # print(data)
+        # print(scaler)
+        predictScore(scaler, model, data, matchType, competitiveFlag)
+        input()
+        os.system("cls")
 
 
 if __name__ == "__main__":
